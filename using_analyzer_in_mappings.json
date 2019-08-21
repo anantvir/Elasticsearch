@@ -1,0 +1,79 @@
+
+# Create new index 'analyzers_test' for analyzer settings
+PUT /analyzers_test
+{
+  "settings": {
+    "analysis": {
+      "analyzer": {
+        "english_stop":{
+          "type":"standard",
+          "stopwords":"_english_"
+        },
+        "my_analyzer":{
+          "type":"custom",
+          "tokenizer":"standard",
+          "char_filter":["html_strip"],
+          "filter":["lowercase","trim","my_stemmer"]
+        }
+      },
+      "filter": {
+        "my_stemmer":{
+          "type":"stemmer",
+          "name":"english"
+        }
+      }
+    }
+  }
+}
+# test if analyzer is working correctly
+POST /analyzers_test/_analyze
+{
+  "analyzer": "my_analyzer",
+  "text":"I'm in the mood for drinking <strong>semi-dry</strong> red wine!"
+}
+
+
+# Add mappings to created index 
+PUT /analyzers_test/_mapping
+{
+  "properties":{
+    "description":{
+      "type":"text",
+      "analyzer":"my_analyzer"
+    },
+    "teaser":{
+      "type":"text",
+      "analyzer":"standard"
+    }
+  }
+}
+# Add a new document
+POST /analyzers_test/1
+{
+  "description":"drinking",
+  "teaser":"drinking"
+}
+
+# Search for a particular value in index
+GET /analyzers_test/_search
+{
+  "query":{
+    "term":{
+      "description":{
+        "value":"drinking"
+      }
+    }
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
