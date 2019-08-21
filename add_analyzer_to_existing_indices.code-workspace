@@ -1,0 +1,24 @@
+# Add analyzer to existing index
+# To do this, the existing index must be temporarily shit down first
+# i.e it should be closed and then re opened as shown below using _close API
+
+POST /analyzers_test/_close
+
+
+# We use settings API because thats where we define analyzers
+# tokenizers etc. If we directly use "settings" key then there will 
+# be an error as PUT/analyzers_test already exists
+PUT /analyzers_test/_settings
+{
+  "analysis": {
+    "analyzer": {
+      "french_stop":{
+        "type":"standard",
+        "stopwords":"_french_"
+      }
+    }
+  }
+}
+
+# Reopen the index
+POST /analyzers_test/_open
