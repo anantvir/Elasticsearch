@@ -1,0 +1,54 @@
+#--------- Full Text Queries--------------------
+
+# Full text queries are first passed through an analyzer(standard or custom). Usually its a standard analyzer and the tokens are converted 
+to lowercase and stored in inverted index. Hence all queries are searched in inverted index and not in the actual documents
+Hence, it is always recommended to use full text queries in cases wherever the user enters data into application for searching.
+If a developer is entering data or the search query is being hardcoded in the code, then we can use term queries as well, because we will be careful about the case of the words being entered.
+
+# Search results can contai some titles which have either pasta or spaghetti and not both. Because default boolean operator is OR. This operator is used because other words like with and for etc. do not have any relevance, so if we use AND then all these need to appear which doesnt make sense.
+# This default behaviour can be changed and operator can be changed to AND 
+GET /recipe/_search
+{
+  "query": {
+    "match": {
+      "title": "Recipes with pasta or spaghetti"
+    }
+  }
+}
+
+# How to change default behavior of OR to AND. This means all words in query must be present in document.
+GET /recipe/_search
+{
+  "query": {
+    "match": {
+      "title": {
+        "query": "Recipes with pasta or spaghetti",
+        "operator": "and"
+      }
+    }
+  }
+}
+GET /recipe/_search
+{
+  "query": {
+    "match": {
+      "title": {
+        "query": "pasta spaghetti",
+        "operator": "and"
+      }
+    }
+  }
+}
+
+# How to search a query in multiple fields
+# Following query will return all documents having 'pasta' in title or description or both of these fields.
+GET /recipe/_search
+{
+  "query": {
+    "multi_match": {
+      "query": "pasta",
+      "fields": ["title","description"]
+    }
+  }
+}
+
