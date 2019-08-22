@@ -1,0 +1,134 @@
+
+#----------- Term Level Queries ------------------
+
+
+# Term query is used for exact matches, ususally in the case of numbers, or dates. The term query searches for match in the inverted index which has all text stored in lowercase format. The search query itself is not analyzed by the analyzer, so if you put in a capitalized word, it will not be able to find a match, because it will search inverted index and inverted index has all lower case letters. If you search for all lowercase word in term query, then it will match, because inverted index contains all lowercase words. But usually when a user enters some value to search in the dialogbox, its not always lowercase, so its better to use full text queries(match) while interacting your application with the user
+#
+GET /product/_search
+{
+  "query": {
+    "term": {
+      "is_active": {
+        "value": true
+      }
+    }
+  }
+}
+
+# search multiple words. It will search the  'tags' field for these words. This is similar to 'in' keyword in relational databases
+GET /product/_search
+{
+  "query": {
+    "terms": {
+      "tags.keyword": [
+        "Soup",
+        "Cake"
+      ]
+    }
+  }
+}
+
+# Retreiveing documents based on their ID, if ID is known beforehand from some other data source
+GET /product/_search
+{
+  "query": {
+    "ids": {
+      "values": [1,2,3]
+    }
+  }
+}
+
+
+# Get documents with a particular field in some range
+# gte- greater than or equal to
+GET /product/_search
+{
+  "query": {
+    "range": {
+      "in_stock": {
+        "gte": 1,   
+        "lte": 5
+      }
+    }
+  }
+}
+GET /product/_search
+{
+  "query": {
+    "range": {
+      "created": {
+        "gte": "2010/01/01",
+        "lte": "2010/12/31"
+      }
+    }
+  }
+}
+
+# Date time math in searching
+
+# 1y = means subtract 1 year from the anchor dat specified at the beginning
+# 1d = means subtract 1 day
+GET /product/_search
+{
+  "query": {
+    "range": {
+      "created": {
+        "gte": "2010/01/01||-1y-1d",
+        "lte": 20
+      }
+    }
+  }
+}
+# /M means round of by month. /M can also be placed at beginning i.e before -1y
+GET /product/_search
+{
+  "query": {
+    "range": {
+      "created": {
+        "gte": "2010/01/01||-1y/M",
+        "lte": 20
+      }
+    }
+  }
+}
+GET /product/_search
+{
+  "query": {
+    "range": {
+      "created": {
+        "gte": "now-1y/M"
+      }
+    }
+  }
+}
+# Matches a field containing a word beginning with the specified prefix. 
+# If a field contains multiple words, then if any word begins with the specified prefix, it is matched by 'prefix' query
+GET /product/_search
+{
+  "query": {
+    "prefix": {
+      "tags.keyword": "Vege"
+    }
+  }
+}
+
+# wildcard query (These are normally slow, better avoided)
+# Veg*ble means any term having prefix as Veg and suffix as ble will be matched. There can be ANYTHING between prefix and suffix
+GET /product/_search
+{
+  "query": {
+    "wildcard": {
+      "tags.keyword": "Veg*ble"
+    }
+  }
+}
+
+# ? matches any single character
+GET /product/_search
+{
+  "query": {
+    "wildcard": {
+      "tags.keyword": "Veget?ble"
+    }
+  }
+}
