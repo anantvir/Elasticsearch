@@ -1,0 +1,250 @@
+# ------ How to add boolean logic to queries i.e search using combination of AND's and/or OR's
+
+
+# Compounded queries. How to add boolean llgic to queries
+# Must contains an array of objects and each object is a query clause
+GET /recipe/_search
+{
+  "query": {
+    "bool": {
+      "must": [
+        {
+          "match": {
+            "ingredients.name": "parmesan"
+          }
+        },
+        {
+          "range": {
+            "preparation_time_minutes": {
+              "lte": 15
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+#Searches can run in two contexts, 1) Query Context 2) Filter Context.
+# Query context means that relevance scores will be calculated for each satisfying document, filter context means no relevance score will be calculated, filter query is just to see if search query matches the document or not. How well it matches the document i.e relavance score is not considered/calculated. It makes filter context faster
+GET /recipe/_search
+{
+  "query": {
+    "bool": {
+      "must": [
+        {
+          "match": {
+            "ingredients.name": "parmesan"
+          }
+        }
+      ],
+      "filter": [
+        {
+          "range": {
+            "preparation_time_minutes": {
+              "lte": 15
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+
+# Now, I dont like Tuna and want to filter that out from search results. How to do it is shown below
+# Also I like parsley, so I want recipes with parsley to have higher score and ranked higher than other items. This is done via "should" object. It means if queries within it match, then they increase the score, but they are not required to match
+GET /recipe/_search
+{
+  "query": {
+    "bool": {
+      "must": [
+        {
+          "match": {
+            "ingredients.name": "parmesan"
+          }
+        }
+      ],
+      "must_not": [
+        {
+          "match": {
+            "ingredients.name": "tuna"
+          }
+        }
+      ],
+      "should": [
+        {
+          "match": {
+            "ingredients.name": "parsley"
+          }
+        }
+      ], 
+      "filter": [
+        {
+          "range": {
+            "preparation_time_minutes": {
+              "lte": 15
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+
+# How to match documents that must contain pasta as ingredient and optionally parmesan. So a must query and should query respectively
+
+GET /recipe/_search
+{
+  "query": {
+    "bool": {
+      "must": [
+        {
+          "match": {
+            "ingredients.name": "pasta"
+          }
+        }
+      ],
+      "should": [
+        {
+          "match": {
+            "ingredients.name": "parmesan"
+          }
+        }
+      ]
+    }
+  }
+}
+# Now what happens if we remove 'must' from above query ? The number of results remains same
+# Removing 'must' makes the 'should' which is an optional parameter, a required one. i.e all the search queries now should contain 'parmesan'
+GET /recipe/_search
+{
+  "query": {
+    "bool": {
+      "should": [
+        {
+          "match": {
+            "ingredients.name": "parmesan"
+          }
+        }
+      ]
+    }
+  }
+}
+
+GET /recipe/_search
+{
+  "query": {
+    "bool": {
+      "must": [
+        {
+          "match": {
+            "ingredients.name": {
+              "query": "parmesan",
+              "_name": "parmesan_must"
+            }
+          }
+        }
+      ],
+      "must_not": [
+        {
+          "match": {
+            "ingredients.name": {
+              "query": "tuna",
+              "_name": "tuna_must_not"
+            }
+          }
+        }
+      ],
+      "should": [
+        {
+          "match": {
+            "ingredients.name": {
+              "query": "parsley",
+              "_name": "parsley_should"
+            }
+          }
+        }
+      ], 
+      "filter": [
+        {
+          "range": {
+            "preparation_time_minutes": {
+              "lte": 15,
+              "_name":"_prep_time_filter"
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+
+# Match query internally uses bool query only. It converts the query passed by user by passing it through and analyzer, breaking it into tokens and then these tokens it gets from the analysis process are added to the bool query as term queries.
+# Hence match query is a simple wrapper around bool queries that simplifies writing common queries
+
+GET /recipe/_search
+{
+  "query": {
+    "match": {
+      "title": "pasta carbonara"
+    }
+  }
+}
+# The above query is same as the one below
+# Notice that bool query contains 'should' query and not 'must' because default operator is OR
+GET /recipe/_search
+{
+  "query": {
+    "bool": {
+      "should": [
+        {
+          "term": {
+            "title":"pasta"
+          }
+        },
+        {
+          "term": {
+            "title":"carbonara"
+          }
+        }
+      ]
+    }
+  }
+}
+
+# Now since operator is AND, the bool query generated internally will contain 'must' queries inside the bool query
+GET /recipe/_search
+{
+  "query": {
+    "match": {
+      "title": {
+        "query": "pasta carbonara",
+        "operator": "and"
+      }
+    }
+  }
+}
+# The above match query will become a 'must' 'bool' query as shown below as operator is now AND i.e we want to find both pasta and carbonara in the documents
+
+
+# Since match queries are first analyzed and then the the analyzed tokenns/queries are searched in inverted index, so the the above query will be analyzed and searched.
+# But in the below query if make 'pasta' as 'Pasta', there will be zero search results, thats because the query we wrote does not analyze the input query. But actually, in elasticsearch, under the hood, the bool query resulting from match query will be first analyzed and converted to lower case and then searched in inverted index.
+GET /recipe/_search
+{
+  "query": {
+    "bool": {
+      "must": [
+        {
+          "term": {
+            "title":"pasta"
+          }
+        },
+        {
+          "term": {
+            "title":"carbonara"
+          }
+        }
+      ]
+    }
+  }
+}
+
