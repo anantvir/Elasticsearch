@@ -1,0 +1,448 @@
+# -----------------------Joining Queries------------------------------------
+# In Relational databases, data is in normalized form. But in elasticsearch, data is in un normalized form. So many data fields are referenced again and again. This is inefficient from disk space point of view, but if efficient for fast seaches. So in elasticsearch, disk space is sacrificed for better search perfoemance
+
+# Create department id
+PUT /department?include_type_name=true
+{
+  "mappings": {
+    "_doc":{
+      "properties":{
+        "name":{
+          "type":"text"
+        },
+        "employees":{
+          "type":"nested"
+        }
+      }
+    }
+  }
+}
+
+# Development Department
+POST /department/_doc/1
+{
+  "name": "Development",
+  "employees":[
+    {
+      "name":"Eric Green",
+      "age": 39,
+      "gender": "M",
+      "position": "Big Data Specialist"
+    },
+    {
+      "name":"James Taylor",
+      "age": 27,
+      "gender": "M",
+      "position": "Software Developer"
+    },
+    {
+      "name":"Gary Jenkins",
+      "age": 21,
+      "gender": "M",
+      "position": "Intern"
+    },
+    {
+      "name":"Julie Powell",
+      "age": 26,
+      "gender": "F",
+      "position": "Intern"
+    },
+    {
+      "name":"Benjamin Smith",
+      "age": 46,
+      "gender": "M",
+      "position": "Senior Software Engineer"
+    }
+    ]
+}
+
+# HR Department
+POST /department/_doc/2
+{
+  "name":"HR & Marketing",
+  "employees":[
+    {
+      "name":"Patricia Lewis",
+      "age": 42,
+      "gender": "F",
+      "position": "Senior Marketing Manager"
+    },
+    {
+      "name":"Maria Anderson",
+      "age": 56,
+      "gender": "F",
+      "position": "Head of HR"
+    },
+    {
+      "name":"Margaret Harris",
+      "age": 19,
+      "gender": "F",
+      "position": "Intern"
+    },
+    {
+      "name":"Ryan Nelson",
+      "age": 31,
+      "gender": "M",
+      "position": "Marketing Manager"
+    },
+    {
+      "name":"Kathy Williams",
+      "age": 49,
+      "gender": "F",
+      "position": "Senior Marketing Manager"
+    },
+    {
+      "name":"Jacqueline Hill",
+      "age": 28,
+      "gender": "F",
+      "position": "Junior Marketing Manager"
+    },
+    {
+      "name":"Evelyn Henderson",
+      "age": 24,
+      "gender": "F",
+      "position": "Intern"
+    },
+    {
+      "name":"Earl Moore",
+      "age": 21,
+      "gender": "M",
+      "position": "Junior SEO Specialist"
+    },
+    {
+      "name":"Philip Sancehz",
+      "age": 35,
+      "gender": "M",
+      "position": "SEM Specialist"
+    }
+    ]
+}
+
+GET /department/_search
+{
+  "query": {
+    "bool": {
+      "must": [
+        {
+          "match": {
+            "employees.position": "intern"
+          }
+        },
+        {
+          "term": {
+            "employees.gender.keyword": {
+              "value": "F"
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+
+GET /department/_search
+{
+  "query": {
+    "nested": {
+      "path": "employees",
+      "query": {
+        "bool": {
+          "must": [
+            {
+              "match": {
+                "employees.position": "intern"
+              }
+            },
+            {
+              "term": {
+                "employees.gender.keyword": {
+                  "value": "F"
+                }
+              }
+            }
+          ]
+    }
+      }
+    }
+  }
+}
+
+# To see which objects caused the query to match
+# _
+GET /department/_search
+{
+  "_source": false, 
+  "query": {
+    "nested": {
+      "path": "employees",
+      "inner_hits": {}, 
+      "query": {
+        "bool": {
+          "must": [
+            {
+              "match": {
+                "employees.position": "intern"
+              }
+            },
+            {
+              "term": {
+                "employees.gender.keyword": {
+                  "value": "F"
+                }
+              }
+            }
+          ]
+    }
+      }
+    }
+  }
+}
+DELETE /department
+
+#---------- Adding Documents -------------------------
+
+
+# Documents can be joined by describing relationships between them which can be done by using the 'join' field. The relations between various kinds of documents can be defined using 'relations' objects
+# A new field is declared called 'join_field', although its name can be anything we want. Its just a field which we want to map !
+# 'relations' field describes the parent child relationship. Example, 'department' is a parent of 'employee'. If we want multiple parents, just make an arrray of strings, like ["employee","next_child_you_want_to_make"] etc.
+
+# See video for details 
+PUT /department?include_type_name=true
+{
+  "mappings": {
+    "_doc":{
+      "properties":{
+        "join_field":{
+          "type":"join",
+          "relations":{
+            "department":"employee"
+          }
+        }
+      }
+    }
+  }
+}
+PUT /department/_doc/1
+{
+  "name":"Development",
+  "join_field":"department"
+}
+PUT /department/_doc/2
+{
+  "name":"Marketing",
+  "join_field":"department"
+}
+PUT /department/_doc/3?routing=1  
+{
+  "name":"Anantvir Singh",
+  "age":28,
+  "gender":"M",
+  "join_field":{
+    "name":"employee",
+    "parent":1 
+  }
+}
+PUT /department/_doc/4?routing=2   
+{
+  "name":"John Doe",
+  "age":24,
+  "gender":"M",
+  "join_field":{
+    "name":"employee",
+    "parent":2 
+  }
+}
+PUT /department/_doc/5?routing=1
+{
+  "name": "James Evans",
+  "age": 32,
+  "gender": "M",
+  "join_field": {
+    "name": "employee",
+    "parent": 1
+  }
+}
+
+PUT /department/_doc/6?routing=1
+{
+  "name": "Daniel Harris",
+  "age": 52,
+  "gender": "M",
+  "join_field": {
+    "name": "employee",
+    "parent": 1
+  }
+}
+
+PUT /department/_doc/7?routing=2
+{
+  "name": "Jane Park",
+  "age": 23,
+  "gender": "F",
+  "join_field": {
+    "name": "employee",
+    "parent": 2
+  }
+}
+
+PUT /department/_doc/8?routing=1
+{
+  "name": "Christina Parker",
+  "age": 29,
+  "gender": "F",
+  "join_field": {
+    "name": "employee",
+    "parent": 1
+  }
+}
+#---------------- Querying by Parent id -----------------
+
+
+# Name of query here is 'parent_id'. It can be anything though, its juts a name. We have to specify its type. Because we want to enter parent id i.e Department and want to get empoyees(child)
+# Here id is the id of parent index for which we want to get all children(employees)
+GET /department/_search
+{
+  "query": {
+    "parent_id":{
+      "type":"employee",
+      "id":1
+    }
+  }
+}
+
+
+
+# What of we dont know the parent id and what to get all children for that parent based on some criteria ?? then do the following 'has_parent' query !
+GET /department/_search
+{
+  "query": {
+    "has_parent": {
+      "parent_type": "department",
+      "query": {
+        "term": {
+          "name.keyword": {
+            "value": "Development"
+          }
+        }
+      }
+    }
+  }
+}
+
+#-------- Retrieve parent documents from child-------------
+
+
+# 'type' means enter type of child. We want to find a parent which 'has_child' of 'type' = 'employee'
+
+# 'has_child' can also let us specify max and min number of documents(children, here parent is employee which is actually a child, and child is 'department' which is actually a parent) that must be matched in the search results. This is done using 'min_children' and 'max_children' paramaters
+GET /department/_search
+{
+  "query": {
+    "has_child": {
+      "type": "employee",
+      "min_children": 2,
+      "max_children": 5, 
+      "query": {
+        "bool": {
+          "must": [
+            {
+              "range": {
+                "age": {
+                  "gte": 10
+                }
+              }
+            }
+          ],
+          "should": [
+            {
+              "term": {
+                "gender.keyword": {
+                  "value": "M"
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}
+
+# ---------- Terms lookup mechanism-----------
+
+
+# See video, explanation is complicated
+PUT /users/_doc/1
+{
+  "name": "John Roberts",
+  "following" : [2, 3]
+}
+
+PUT /users/_doc/2
+{
+  "name": "Elizabeth Ross",
+  "following" : []
+}
+
+PUT /users/_doc/3
+{
+  "name": "Jeremy Brooks",
+  "following" : [1, 2]
+}
+
+PUT /users/_doc/4
+{
+  "name": "Diana Moore",
+  "following" : [3, 1]
+}
+
+PUT /stories/_doc/1
+{
+  "user": 3,
+  "content": "Wow look, a penguin!"
+}
+
+PUT /stories/_doc/2
+{
+  "user": 1,
+  "content": "Just another day at the office... #coffee"
+}
+
+PUT /stories/_doc/3
+{
+  "user": 1,
+  "content": "Making search great again! #elasticsearch #elk"
+}
+
+PUT /stories/_doc/4
+{
+  "user": 4,
+  "content": "Had a blast today! #rollercoaster #amusementpark"
+}
+
+PUT /stories/_doc/5
+{
+  "user": 4,
+  "content": "Yay, I just got hired as an Elasticsearch consultant - so excited!"
+}
+
+PUT /stories/_doc/6
+{
+  "user": 2,
+  "content": "Chilling at the beach @ Greece #vacation #goodtimes"
+}
+
+GET /stories/_search
+{
+  "query": {
+    "terms": {
+      "user": {
+        "index":"users",
+        "type":"_doc",
+        "id":1,
+        "path":"following"
+      }
+    }
+  }
+}
+
