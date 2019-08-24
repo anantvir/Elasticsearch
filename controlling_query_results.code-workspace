@@ -1,0 +1,80 @@
+# ----------- Controlling Query Results -----------------
+
+
+
+# Add query parameter for more readable results
+GET /recipe/_search?format=yaml
+{
+  "query": {
+    "match": {
+      "title": "pasta"
+    }
+  }
+}
+
+# How to control which parts of the _source field are returned ?
+# Set _source field to false
+GET /recipe/_search
+{
+  "_source": ["ingredients.*","servings"], 
+  "query": {
+    "match": {
+      "title": "pasta"
+    }
+  }
+}
+GET /recipe/_search
+{
+  "_source": {
+    "includes": "ingredients.*",
+    "excludes": "ingredients.name"
+  }, 
+  "query": {
+    "match": {
+      "title": "pasta"
+    }
+  }
+}
+
+
+# Sorting recipes by time
+
+GET /recipe/_search
+{
+  "_source": false,
+  "query": {
+    "match_all": {}
+  },
+  "sort":[
+      "preparation_time_minutes"
+    ]
+}
+
+# Sort by created date in descending order
+GET /recipe/_search
+{
+  "_source": "created",
+  "query": {
+    "match_all": {}
+  },
+  "sort":[
+      {"created": "desc"}
+    ]
+}
+
+# If 2 recipes have same preparation time, then they will again be sorted by created date in desc order
+
+GET /recipe/_search
+{
+  "_source": ["preparation_time_minutes","created"],
+  "query": {
+    "match_all": {}
+  },
+  "sort":[
+    {"preparation_time_minutes": "asc"},
+      {"created": "desc"}
+    ]
+}
+
+
+
