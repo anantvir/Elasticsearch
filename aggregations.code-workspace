@@ -1,0 +1,360 @@
+# -------------- AGGREGATIONS--------------------------
+
+
+PUT /order?include_type_name=true
+{
+  "mappings": {
+    "_doc": {
+      "properties": {
+        "purchased_at": {
+          "type": "date"
+        },
+        "lines": {
+          "type": "nested",
+          "properties": {
+            "product_id": {
+              "type": "integer"
+            },
+            "amount": {
+              "type": "double"
+            },
+            "quantity": {
+              "type": "short"
+            }
+          }
+        },
+        "total_amount": {
+          "type": "double"
+        },
+        "status": {
+          "type": "keyword"
+        },
+        "sales_channel": {
+          "type": "keyword"
+        },
+        "salesman": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "integer"
+            },
+            "name": {
+              "type": "text"
+            }
+          }
+        }
+      }
+    }
+  }
+}
+GET /order/_mapping
+
+# Sum aggregation
+# Here total_sales is any name we can keep for our aggregation and total_amount is the field in our data which we want to query
+GET /order/_doc/_search
+{
+  "size":0,
+  "aggs":{
+    "total_sales":{
+      "sum": {
+        "field": "total_amount"
+      }
+    }
+  }
+}
+
+GET /order/_doc/_search
+{
+  "size":0,
+  "aggs":{
+    "total_sales":{
+      "sum": {
+        "field": "total_amount"
+      }
+    },
+    "avg_sale":{
+      "avg":{
+        "field":"total_amount"
+      }
+    },
+    "min_sale":{
+      "min":{
+        "field":"total_amount"
+      }
+    },
+    "max_sale":{
+      "max":{
+        "field":"total_amount"
+      }
+    }
+  }
+}
+
+# Cardinality aggregation -  to find the number of distinct values in a field. Liek number of different salesmen associated with the order
+# Cardinality aggregation gives approximate value and not exact, as exact will take many resources.
+GET /order/_doc/_search
+{
+  "size":0,
+  "aggs":{
+    "total_salesmen":{
+      "cardinality":{
+        "field":"salesman.id"
+      }
+    }
+  }
+}
+
+GET /order/_doc/_search
+{
+  "size":0,
+  "aggs":{
+    "values_count":{
+      "value_count":{
+        "field":"total_amount"
+      }
+    }
+  }
+}
+
+GET /order/_doc/_search
+{
+  "size":0,
+  "aggs":{
+    "status_terms":{
+      "terms":{
+        "field":"status"
+      }
+    }
+  }
+}
+
+# this nested aggregation runs in the context of the bucket that the parent aggregation created
+# Terms aggregation runs in the context of query. Which then produces buckets containing counts of orders in different status's. The stats aggregation, being a nested aggregation, runs on each of these buckets.
+GET /order/_doc/_search
+{
+  "size":0,
+  "query":{
+    "range":{
+      "total_amount":{
+        "gte":100
+      }
+    }
+  },
+  "aggs":{
+    "status_terms":{
+      "terms":{
+        "field":"status"
+      },
+      "aggs":{
+        "status_stats":{
+          "stats":{
+            "field":"total_amount"
+          }
+        }
+      }
+    }
+  }
+}
+# Below the 'avg' aggregation runs only in context of filter. Means avg aggregation will be applied only to documents that match the 'range' query.
+# So range query is a top level aggregation and avg query runs in context of filter aggregation
+GET /order/_doc/_search
+{
+  "size":0,
+  "aggs":{
+    "low_value":{
+      "filter":{
+        "range":{
+          "total_amount":{
+            "lt":50
+          }
+        }
+      },
+      "aggs":{
+        "avg_amount":{
+          "avg":{
+            "field":"total_amount"
+          }
+        }
+      }
+    }
+  }
+}
+# 'Filters' aggregation is used to decide which document to put in which bucket depending on a criteria
+# Below we create 2 buckets. items containing pasta in their title are put in the pasta bucket and items containing 'spaghetti' in their ttile field are put in the 'spaghetti' field
+GET /recipe/_search
+{
+  "size":0,
+  "aggs":{
+    "my_filter":{
+      "filters": {
+        "filters": {
+          "pasta": {
+            "match":{
+              "title":"pasta"
+            }
+          },
+          "spaghetti":{
+            "match":{
+              "title":"spaghetti"
+            }
+          }
+        }
+      },
+      "aggs":{
+        "avg_rating":{
+          "avg": {
+            "field": "ratings"
+          }
+        }
+      }
+    }  
+  }
+}
+
+#----------- Range Aggregations-------------------
+# To get orders with amount ranging from 0 to 50, 50 to 100 and 100 above
+GET /order/_search
+{
+  "size":0,
+  "aggs": {
+    "amount_distribution": {
+      "range": {
+        "field": "total_amount",
+        "ranges": [
+          {
+            "from": 0,
+            "to": 50
+          },
+          {
+            "from": 50,
+            "to":100
+          },
+          {
+            "from": 100
+          }
+        ]
+      }
+    }
+  }
+}
+# How to use date_range aggregation
+GET /order/_search
+{
+  "size":0,
+  "aggs": {
+    "purchased_ranges":{
+      "date_range": {
+        "field": "purchased_at",
+        "ranges": [
+          {
+            "from": "2016-01-01",
+            "to": "2016-01-01||+6M"
+          },
+          {
+            "from": "2016-01-01||+6M",
+            "to": "2016-01-01||+1y"
+          }
+        ]
+      }
+    }
+  }
+}
+# ----------Histogram aggregation-----------------
+
+GET /order/_search
+{
+  "size":0,
+  "aggs": {
+    "amount_distribution": {
+      "histogram": {
+        "field": "total_amount",
+        "interval": 25
+      }
+    }
+  }
+}
+
+#------------- Global Aggregation ---------------------
+
+# Lets say we have a query that narrows down the documents for the aggregation to work on. But still we need access to all the documents again, then we can exit the query context and go to global context using this aggregation
+
+# Below aggregation now returns stats of all documents instead of just documents with total_amount >= 100
+# So aggregation 'stats' is applied on 1000 documents instead of 489 documents returned by the range query
+GET /order/_search
+{
+  "query": {
+    "range": {
+      "total_amount": {
+        "gte": 100
+      }
+    }
+  },
+  "size": 0,
+  "aggs": {
+    "stats_expensive":{
+      "stats": {
+        "field": "total_amount"
+      }
+    },
+    "all_orders": {
+      "global": {},
+      "aggs": {
+        "stats_amount": {
+          "stats": {
+            "field": "total_amount"
+          }
+        }
+      }
+    }
+  }
+}
+
+# ------------- How to treat missing values in aggregation --------
+POST /order/_doc/1001
+{
+  "total_amount":100
+}
+POST /order/_doc/1002
+{
+  "total_amount":200,
+  "status":null
+}
+# Below aggregation gives sum of above two added items having total = 300 and missing values for status field
+GET /order/_search
+{
+  "size":0,
+  "aggs": {
+    "orders_without_status": {
+      "missing": {
+        "field": "status"
+      },
+      "aggs": {
+        "missing_sum": {
+          "sum": {
+            "field": "total_amount"
+          }
+        }
+      }
+    }
+  }
+}
+# ----------------Nested Aggregation-------------
+GET /department
+GET /department/_search
+{
+  "size": 0,
+  "aggs": {
+    "employees": {
+      "nested": {
+        "path": "employees"
+      },
+      "aggs": {
+        "minimum_age": {
+          "min": {
+            "field": "employees.age"
+          }
+        }
+      }
+    }
+  }
+}
